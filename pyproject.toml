@@ -25,6 +25,7 @@ classifiers = [
     "Topic :: Scientific/Engineering :: Artificial Intelligence",
 ]
 dependencies = [
+    "bitsandbytes>=0.45.5,!=0.46.0,!=0.48.0",
     "typer",
     "rich",
     "pydantic",
