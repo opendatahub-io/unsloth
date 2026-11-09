@@ -292,6 +292,7 @@ def test_triton_compiled_kernel_has_num_ctas_and_cluster_dims():
 
 # Mirrors TORCH_TORCHVISION_COMPAT in torchvision_compatibility_check.
 _TORCH_TORCHVISION_COMPAT = {
+    (2, 15): (0, 29, 2),
     (2, 9): (0, 24),
     (2, 8): (0, 23),
     (2, 7): (0, 22),
@@ -328,7 +329,7 @@ def test_installed_torch_torchvision_pair_is_compatible():
     if required is None:
         pytest.skip(
             f"torch=={torch_raw} is outside the pinned compatibility "
-            f"table (entries cover 2.4-2.9). The formula fallback "
+            f"table (entries cover 2.4-2.9 and 2.15). The formula fallback "
             f"in _infer_required_torchvision handles it at runtime."
         )
 
