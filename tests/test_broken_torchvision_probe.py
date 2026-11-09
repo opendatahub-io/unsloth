@@ -480,3 +480,56 @@ def test_the_from_import_wording_is_what_this_interpreter_actually_says():
         produced.replace("tvfrom", "torchvision")
     ), produced
     assert not import_fixes._TORCHVISION_ATTRIBUTE_RE.search(produced), produced
+
+
+def _run_check(torch_version, torchvision_version):
+    """Run the real check against faked installed versions, with the binary probe stubbed out."""
+    versions = {"torch": torch_version, "torchvision": torchvision_version}
+    with mock.patch.dict("os.environ", {"UNSLOTH_SKIP_TORCHVISION_CHECK": "0"}), mock.patch.object(
+        import_fixes.importlib.util, "find_spec", return_value = object()
+    ), mock.patch.object(
+        import_fixes, "importlib_version", side_effect = versions.__getitem__
+    ), mock.patch.object(import_fixes, "_probe_torchvision_binary") as probe:
+        import_fixes.torchvision_compatibility_check()
+    return probe
+
+
+@pytest.mark.parametrize("torchvision_version", ["0.29.0", "0.29.2"])
+def test_torch_2_15_accepts_the_torchvision_it_shipped_with(torchvision_version):
+    """torch 2.15.0 shipped alongside torchvision 0.29.2 (which requires torch>=2.14.0);
+    there is no torchvision 0.30. The +15 formula would demand 0.30 and refuse to import."""
+    probe = _run_check("2.15.0", torchvision_version)
+    probe.assert_called_once()
+
+
+def test_torch_2_15_still_rejects_an_older_torchvision():
+    with pytest.raises(ImportError, match = r"torchvision>=0\.29\.0"):
+        _run_check("2.15.0", "0.28.0")
+
+
+def test_torch_2_15_repair_names_the_companion_patch_not_torchs():
+    """torch 2.15.0's companion is 0.29.2, while PyPI's 0.29.0 pins torch==2.14.0: carrying torch's
+    patch (.0) into the repair would reinstall a binary built for the wrong torch."""
+    probe = _run_check("2.15.0", "0.29.2")
+    required = probe.call_args.args[2] if len(probe.call_args.args) > 2 else probe.call_args.kwargs["required"]
+    assert tuple(required) == (0, 29, 2)
+
+
+def test_patch_still_tracks_torch_where_the_table_names_none():
+    probe = _run_check("2.7.1", "0.22.1")
+    required = probe.call_args.args[2] if len(probe.call_args.args) > 2 else probe.call_args.kwargs["required"]
+    assert tuple(required) == (0, 22, 1)
+
+
+def test_torchvision_0_29_2_is_published_for_torch_2_14_and_later():
+    """The 2.15 table entry rests on this metadata; skipped when pypi.org is unreachable."""
+    import json
+    import urllib.error
+    import urllib.request
+
+    try:
+        with urllib.request.urlopen("https://pypi.org/pypi/torchvision/0.29.2/json", timeout = 20) as response:
+            metadata = json.load(response)
+    except (urllib.error.URLError, TimeoutError, OSError) as error:
+        pytest.skip(f"pypi.org unreachable: {error}")
+    assert "torch>=2.14.0" in (metadata["info"].get("requires_dist") or [])

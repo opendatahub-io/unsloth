@@ -5963,6 +5963,10 @@ def torchvision_compatibility_check():
 
     # Ground truth, takes precedence over the formula; see pytorch.org/get-started/previous-versions/
     TORCH_TORCHVISION_COMPAT = {
+        # torch 2.15 shipped alongside torchvision 0.29.2 (requires torch>=2.14.0); there is no
+        # 0.30, so the +15 formula would refuse every real install. A third element names the
+        # companion patch when it does not track torch's own (PyPI's 0.29.0 pins torch==2.14.0).
+        (2, 15): (0, 29, 2),
         (2, 9): (0, 24),
         (2, 8): (0, 23),
         (2, 7): (0, 22),
@@ -5987,7 +5991,7 @@ def torchvision_compatibility_check():
 
     # Carry torch's own patch into the companion: they move together (2.7.0/0.22.0, 2.7.1/0.22.1),
     # so the repair names one wheel instead of a minor-wide range --no-deps cannot satisfy.
-    if len(torch_release) >= 3:
+    if len(required) == 2 and len(torch_release) >= 3:
         required = (required[0], required[1], torch_release[2])
 
     required_tv_str = f"{required[0]}.{required[1]}.0"
